@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'staff_upload_page.dart';
+import 'attendance_result_page.dart';
 
 class StaffProjectPage extends StatelessWidget {
   final String course;
@@ -26,6 +27,8 @@ class StaffProjectPage extends StatelessWidget {
               ),
             ),
             SizedBox(height: 30),
+
+            // ✅ Upload Page
             ElevatedButton(
               child: Text("Upload Classroom Photo"),
               onPressed: () {
@@ -37,20 +40,21 @@ class StaffProjectPage extends StatelessWidget {
                 );
               },
             ),
+
             SizedBox(height: 20),
-            ElevatedButton(
-              child: Text("Process Attendance"),
-              onPressed: () {
-                // Python AI processing
-              },
-            ),
-            SizedBox(height: 20),
+
+            // ✅ Direct Result View
             ElevatedButton(
               child: Text("View Attendance Result"),
               onPressed: () {
-                // Open result page
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AttendanceResultPage(),
+                  ),
+                );
               },
-            )
+            ),
           ],
         ),
       ),

@@ -55,7 +55,7 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
     }
   }
 
-  // PROCESS ATTENDANCE
+  // 🔥 PROCESS ATTENDANCE (UPLOAD + BACKEND CALL)
   Future processAttendance() async {
     if (images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -70,23 +70,18 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
     try {
       List<String> imageUrls = [];
 
-      // Upload images to Cloudinary
+      // 1️⃣ Upload images to Cloudinary
       for (File image in images) {
         var url =
             Uri.parse("https://api.cloudinary.com/v1_1/dzldowl1c/image/upload");
 
         var request = http.MultipartRequest("POST", url);
-
         request.fields['upload_preset'] = "classroom_images";
-
-        request.files.add(
-          await http.MultipartFile.fromPath('file', image.path),
-        );
+        request.files
+            .add(await http.MultipartFile.fromPath('file', image.path));
 
         var response = await request.send();
-
         var res = await response.stream.bytesToString();
-
         var data = jsonDecode(res);
 
         imageUrls.add(data['secure_url']);
@@ -94,7 +89,7 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
 
       print("Uploaded URLs: $imageUrls");
 
-      // 🔥 SEND URL TO BACKEND
+      // 2️⃣ Call backend API AFTER getting Cloudinary URLs
       var api = Uri.parse(
           "https://ai-attendance-backend.onrender.com/process_attendance");
 
@@ -102,7 +97,7 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
         api,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "image_urls": imageUrls,
+          "images": imageUrls, // ✅ YOUR CLOUDINARY URLs
           "date": DateTime.now().toString().substring(0, 10)
         }),
       );
@@ -186,7 +181,7 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
             ),
             SizedBox(height: 25),
             ElevatedButton(
-              onPressed: processAttendance,
+              onPressed: processAttendance, // ✅ PROCESS ATTENDANCE
               child: Text("Process Attendance"),
             ),
             SizedBox(height: 15),

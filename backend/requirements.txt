@@ -1,7 +1,10 @@
 flask
-numpy
-torch
-facenet-pytorch
-Pillow
+gunicorn
 firebase-admin
-opencv-python
+numpy
+opencv-python-headless
+pillow
+requests
+mtcnn
+keras-facenet
+tensorflow
