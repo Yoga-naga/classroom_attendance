@@ -2,8 +2,14 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-from utils import detector, encoder
-from config import DEVICE
+
+# ✅ SAFE IMPORT (IMPORTANT)
+try:
+    from utils import detector, encoder
+    from config import DEVICE
+except:
+    from backend.utils import detector, encoder
+    from backend.config import DEVICE
 
 
 def process_attendance(group_img, database, threshold):
@@ -16,7 +22,8 @@ def process_attendance(group_img, database, threshold):
 
     present_ids = []
 
-    if faces is None:
+    # ✅ FIX: handle no face case
+    if faces is None or boxes is None:
         print("No faces detected")
         return group_img, []
 
@@ -34,7 +41,6 @@ def process_attendance(group_img, database, threshold):
         max_sim = -1
 
         for sid, ref_emb in database.items():
-
             sim = np.dot(g_emb, ref_emb)
 
             if sim > max_sim:
@@ -46,26 +52,28 @@ def process_attendance(group_img, database, threshold):
         if max_sim >= threshold:
             present_ids.append(best_id)
 
-        box = boxes[i].astype(int)
+        # ✅ SAFE BOX DRAW
+        if i < len(boxes):
+            box = boxes[i].astype(int)
 
-        color = (0,255,0) if max_sim >= threshold else (0,0,255)
+            color = (0, 255, 0) if max_sim >= threshold else (0, 0, 255)
 
-        cv2.rectangle(
-            group_img,
-            (box[0],box[1]),
-            (box[2],box[3]),
-            color,
-            2
-        )
+            cv2.rectangle(
+                group_img,
+                (box[0], box[1]),
+                (box[2], box[3]),
+                color,
+                2
+            )
 
-        cv2.putText(
-            group_img,
-            best_id,
-            (box[0],box[1]-10),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2
-        )
+            cv2.putText(
+                group_img,
+                best_id,
+                (box[0], box[1] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7,
+                color,
+                2
+            )
 
     return group_img, present_ids
