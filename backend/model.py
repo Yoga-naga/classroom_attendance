@@ -1,68 +1,71 @@
-import requests
-import numpy as np
 import cv2
+import numpy as np
+import torch
 from PIL import Image
-from io import BytesIO
-from mtcnn import MTCNN
-from keras_facenet import FaceNet
+from utils import detector, encoder
+from config import DEVICE
 
-# Load embeddings function
-from embedding_cache import load_embeddings
 
-# Initialize models
-detector = MTCNN()
-embedder = FaceNet()
+def process_attendance(group_img, database, threshold):
 
-# 🔥 GLOBAL CACHE (IMPORTANT)
-student_db = {}
+    img_rgb = cv2.cvtColor(group_img, cv2.COLOR_BGR2RGB)
+    img_pil = Image.fromarray(img_rgb)
 
-def download_image(url):
-    response = requests.get(url)
-    img = Image.open(BytesIO(response.content)).convert("RGB")
-    return np.array(img)
+    boxes, _ = detector.detect(img_pil)
+    faces = detector(img_pil)
 
-def get_embedding(face):
-    face = cv2.resize(face, (160, 160))
-    face = np.expand_dims(face, axis=0)
-    embedding = embedder.embeddings(face)[0]
-    return embedding
+    present_ids = []
 
-def recognize_faces(image_urls):
-    global student_db
+    if faces is None:
+        print("No faces detected")
+        return group_img, []
 
-    # 🔥 Load only once (IMPORTANT FIX)
-    if not student_db:
-        print("Loading embeddings from Firebase...")
-        student_db = load_embeddings()
-        print("Total students loaded:", len(student_db))
+    faces = faces.to(DEVICE)
 
-    present_students = set()
+    with torch.no_grad():
+        embeddings = encoder(faces).cpu().numpy()
 
-    for url in image_urls:
-        try:
-            img = download_image(url)
-            faces = detector.detect_faces(img)
+    # Normalize embeddings
+    embeddings = embeddings / np.linalg.norm(embeddings, axis=1, keepdims=True)
 
-            for face in faces:
-                x, y, w, h = face['box']
+    for i, g_emb in enumerate(embeddings):
 
-                # Fix negative values
-                x, y = max(0, x), max(0, y)
+        best_id = "Unknown"
+        max_sim = -1
 
-                face_img = img[y:y+h, x:x+w]
+        for sid, ref_emb in database.items():
 
-                if face_img.size == 0:
-                    continue
+            sim = np.dot(g_emb, ref_emb)
 
-                embedding = get_embedding(face_img)
+            if sim > max_sim:
+                max_sim = sim
+                best_id = sid
 
-                for student_id, db_embedding in student_db.items():
-                    distance = np.linalg.norm(embedding - db_embedding)
+        print("Matched Student:", best_id, "| Similarity:", max_sim)
 
-                    if distance < 0.6:
-                        present_students.add(student_id)
+        if max_sim >= threshold:
+            present_ids.append(best_id)
 
-        except Exception as e:
-            print("Error processing image:", e)
+        box = boxes[i].astype(int)
 
-    return list(present_students)
+        color = (0,255,0) if max_sim >= threshold else (0,0,255)
+
+        cv2.rectangle(
+            group_img,
+            (box[0],box[1]),
+            (box[2],box[3]),
+            color,
+            2
+        )
+
+        cv2.putText(
+            group_img,
+            best_id,
+            (box[0],box[1]-10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            color,
+            2
+        )
+
+    return group_img, present_ids

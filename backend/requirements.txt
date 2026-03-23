@@ -8,3 +8,5 @@ requests
 mtcnn
 keras-facenet
 tensorflow
+torch
+facenet-pytorch

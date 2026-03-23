@@ -55,12 +55,13 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
     }
   }
 
-  // 🔥 PROCESS ATTENDANCE (UPLOAD + BACKEND CALL)
+  // PROCESS ATTENDANCE
   Future processAttendance() async {
     if (images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Upload classroom images first")),
       );
+
       return;
     }
 
@@ -70,18 +71,22 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
     try {
       List<String> imageUrls = [];
 
-      // 1️⃣ Upload images to Cloudinary
       for (File image in images) {
         var url =
             Uri.parse("https://api.cloudinary.com/v1_1/dzldowl1c/image/upload");
 
         var request = http.MultipartRequest("POST", url);
+
         request.fields['upload_preset'] = "classroom_images";
-        request.files
-            .add(await http.MultipartFile.fromPath('file', image.path));
+
+        request.files.add(
+          await http.MultipartFile.fromPath('file', image.path),
+        );
 
         var response = await request.send();
+
         var res = await response.stream.bytesToString();
+
         var data = jsonDecode(res);
 
         imageUrls.add(data['secure_url']);
@@ -89,32 +94,20 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
 
       print("Uploaded URLs: $imageUrls");
 
-      // 2️⃣ Call backend API AFTER getting Cloudinary URLs
-      var api = Uri.parse(
-          "https://ai-attendance-backend.onrender.com/process_attendance");
+      var api = Uri.parse("http://10.11.214.214:5000/process_attendance");
 
-      var response = await http.post(
+      await http.post(
         api,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
-          "images": imageUrls, // ✅ YOUR CLOUDINARY URLs
+          "image_urls": imageUrls,
           "date": DateTime.now().toString().substring(0, 10)
         }),
       );
 
-      if (response.statusCode == 200) {
-        var result = jsonDecode(response.body);
-
-        print("Backend result: $result");
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Attendance Processed Successfully")),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Server Error")),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Attendance Processed Successfully")),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error: $e")),
@@ -181,7 +174,7 @@ class _StaffUploadPageState extends State<StaffUploadPage> {
             ),
             SizedBox(height: 25),
             ElevatedButton(
-              onPressed: processAttendance, // ✅ PROCESS ATTENDANCE
+              onPressed: processAttendance,
               child: Text("Process Attendance"),
             ),
             SizedBox(height: 15),
