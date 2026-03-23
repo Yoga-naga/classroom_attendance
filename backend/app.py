@@ -7,7 +7,7 @@ from firebase_admin import credentials, firestore
 import os
 import json
 
-# ✅ FIXED IMPORTS
+# ✅ CORRECT IMPORTS
 from backend.utils import get_embedding
 from backend.model import process_attendance
 from backend.config import MATCH_THRESHOLD
