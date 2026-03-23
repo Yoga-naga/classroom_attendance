@@ -5,8 +5,7 @@ numpy
 opencv-python-headless
 pillow
 requests
-mtcnn
-keras-facenet
-tensorflow
-torch
 facenet-pytorch
+torch
+torchvision
+mtcnn

@@ -7,7 +7,6 @@ from firebase_admin import credentials, firestore
 import os
 import json
 
-# ✅ CORRECT IMPORTS
 from backend.utils import get_embedding
 from backend.model import process_attendance
 from backend.config import MATCH_THRESHOLD
@@ -15,15 +14,7 @@ from backend.config import MATCH_THRESHOLD
 app = Flask(__name__)
 
 # =========================
-# HOME ROUTE
-# =========================
-@app.route("/")
-def home():
-    return "AI Attendance Backend Running"
-
-
-# =========================
-# FIREBASE INIT (FIXED)
+# FIREBASE INIT
 # =========================
 if not firebase_admin._apps:
     firebase_json = os.environ.get("FIREBASE_KEY")
@@ -31,19 +22,25 @@ if not firebase_admin._apps:
     if firebase_json:
         cred = credentials.Certificate(json.loads(firebase_json))
     else:
-        cred = credentials.Certificate("firebase_key.json")
+        cred = credentials.Certificate("backend/firebase_key.json")
 
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
 
-
 # =========================
-# GLOBAL DB
+# GLOBAL DATA
 # =========================
 student_db = {}
 student_names = {}
+loaded = False
 
+# =========================
+# HOME
+# =========================
+@app.route("/")
+def home():
+    return "AI Attendance Backend Running"
 
 # =========================
 # DOWNLOAD IMAGE
@@ -60,16 +57,13 @@ def download_image(url):
         if img_array.size == 0:
             return None
 
-        img = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-
-        return img
+        return cv2.imdecode(img_array, cv2.IMREAD_COLOR)
 
     except:
         return None
 
-
 # =========================
-# LOAD STUDENTS
+# LOAD STUDENTS (LAZY)
 # =========================
 def load_students():
     global student_db, student_names
@@ -105,17 +99,18 @@ def load_students():
 
     print("Students loaded:", len(student_db))
 
-
-# LOAD ONCE
-if len(student_db) == 0:
-    load_students()
-
-
 # =========================
 # ATTENDANCE API
 # =========================
 @app.route("/process_attendance", methods=["POST"])
 def process():
+    global loaded
+
+    # ✅ LOAD ONLY ON FIRST REQUEST
+    if not loaded:
+        load_students()
+        loaded = True
+
     data = request.json
 
     image_urls = data["image_urls"]
@@ -140,7 +135,7 @@ def process():
 
     present_ids = list(present_ids)
 
-    # SAVE
+    # SAVE TO FIREBASE
     ref = db.collection("attendance").document(date).collection("students")
 
     for sid in student_db.keys():
@@ -153,10 +148,9 @@ def process():
 
     return jsonify({"present_students": present_ids})
 
-
 # =========================
 # RUN
 # =========================
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+    port = int(os.environ.get("PORT", 5000))  # ✅ IMPORTANT FOR RENDER
     app.run(host="0.0.0.0", port=port)
