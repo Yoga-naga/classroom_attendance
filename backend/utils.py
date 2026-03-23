@@ -3,18 +3,13 @@ import numpy as np
 import torch
 from PIL import Image
 
-# ✅ SAFE IMPORT
-try:
-    from config import DEVICE
-except:
-    from backend.config import DEVICE
+# ✅ FIXED IMPORT
+from backend.config import DEVICE
 
 from facenet_pytorch import MTCNN, InceptionResnetV1
 
 
-# =========================
-# FACE DETECTOR
-# =========================
+# DETECTOR
 detector = MTCNN(
     image_size=160,
     margin=20,
@@ -22,17 +17,12 @@ detector = MTCNN(
     device=DEVICE
 )
 
-# =========================
-# FACE ENCODER
-# =========================
+# ENCODER
 encoder = InceptionResnetV1(
     pretrained='vggface2'
 ).eval().to(DEVICE)
 
 
-# =========================
-# GET EMBEDDING
-# =========================
 def get_embedding(img):
 
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -40,11 +30,9 @@ def get_embedding(img):
 
     face = detector(img_pil)
 
-    # ✅ FIX: handle no face
     if face is None:
         return None
 
-    # If multiple faces → take first
     if len(face.shape) == 4:
         face = face[0]
 
@@ -54,8 +42,6 @@ def get_embedding(img):
         emb = encoder(face)
 
     emb = emb.cpu().numpy()[0]
-
-    # Normalize
     emb = emb / np.linalg.norm(emb)
 
     return emb
